@@ -13,14 +13,19 @@ Implementation
 Landing Zone
 
 Glue tables:
+
 customer_landing.sql
+
 accelerometer_landing.sql
 
 Athena: Landing Zone data query results
 
 Trusted Zone
+
 Glue job scripts:
+
 customer_landing to trusted.py
+
 accelerometer_landing to trusted.py
 
 Athena: trusted zone query results
@@ -28,4 +33,5 @@ Athena: trusted zone query results
 Curated Zone
 
 customer_trusted to curated.py
+
 step_trainer_trusted to curated.py
