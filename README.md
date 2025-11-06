@@ -11,6 +11,7 @@ As a data engineer on the STEDI Step Trainer team, we'll need to extract the dat
 
 Implementation
 Landing Zone
+
 Glue tables:
 customer_landing.sql
 accelerometer_landing.sql
@@ -25,5 +26,6 @@ accelerometer_landing to trusted.py
 Athena: trusted zone query results
 
 Curated Zone
+
 customer_trusted to curated.py
 step_trainer_trusted to curated.py
