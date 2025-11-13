@@ -1,8 +1,8 @@
 import sys
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
-from pyspark.context import SparkContext
 from awsglue.context import GlueContext
+from pyspark.context import SparkContext
 from awsglue.job import Job
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
@@ -12,59 +12,35 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
-# Script generated for node Accelerometer Landing
-AccelerometerLanding_node1676402494135 = glueContext.create_dynamic_frame.from_catalog(
-    database="stedi_database",
-    table_name="accelerometer_landing",
-    transformation_ctx="AccelerometerLanding_node1676402494135",
+# Load landing accelerometer data
+accelerometer_landing = glueContext.create_dynamic_frame.from_catalog(
+    database="stedi",
+    table_name="accelerometer_landing"
 )
 
-# Script generated for node Customer Trusted Zone
-CustomerTrustedZone_node1 = glueContext.create_dynamic_frame.from_options(
-    format_options={"multiline": False},
+# Load trusted customer data
+customer_trusted = glueContext.create_dynamic_frame.from_catalog(
+    database="stedi",
+    table_name="customer_trusted"
+)
+
+# Join accelerometer readings to only include customers with consent
+joined_data = Join.apply(
+    frame1=accelerometer_landing,
+    frame2=customer_trusted,
+    keys1=["user"],  # "user" in accelerometer matches "email" in customer
+    keys2=["email"]
+)
+
+# Keep only accelerometer columns
+accelerometer_trusted = joined_data.select_fields(["user", "timestamp", "x", "y", "z"])
+
+# Write trusted data
+glueContext.write_dynamic_frame.from_options(
+    frame=accelerometer_trusted,
     connection_type="s3",
-    format="json",
-    connection_options={
-        "paths": ["s3://project-stedi-customer-landing-bucket/customers/trusted/"],
-        "recurse": True,
-    },
-    transformation_ctx="CustomerTrustedZone_node1",
-)
-
-# Script generated for node Join Customer
-JoinCustomer_node1676402624725 = Join.apply(
-    frame1=CustomerTrustedZone_node1,
-    frame2=AccelerometerLanding_node1676402494135,
-    keys1=["email"],
-    keys2=["user"],
-    transformation_ctx="JoinCustomer_node1676402624725",
-)
-
-# Script generated for node Drop Fields
-DropFields_node1676402768067 = DropFields.apply(
-    frame=JoinCustomer_node1676402624725,
-    paths=[
-        "serialNumber",
-        "shareWithPublicAsOfDate",
-        "birthDay",
-        "registrationDate",
-        "shareWithResearchAsOfDate",
-        "customerName",
-        "email",
-        "lastUpdateDate",
-        "phone",
-        "shareWithFriendsAsOfDate",
-        "timestamp",
-    ],
-    transformation_ctx="DropFields_node1676402768067",
-)
-
-# Script generated for node AWS Glue Data Catalog
-AWSGlueDataCatalog_node1676574482997 = glueContext.write_dynamic_frame.from_catalog(
-    frame=DropFields_node1676402768067,
-    database="stedi_database",
-    table_name="accelerometer_trusted",
-    transformation_ctx="AWSGlueDataCatalog_node1676574482997",
+    connection_options={"path": "s3://project-stedi-customer-landing-bucket/accelerometer/trusted/"},
+    format="json"
 )
 
 job.commit()
