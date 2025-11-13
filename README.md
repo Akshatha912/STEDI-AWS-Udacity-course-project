@@ -19,6 +19,7 @@ As a data engineer on the STEDI Step Trainer team, we'll need to extract the dat
 
 Implementation
 1) Landing Zone - get raw data to S3 bucket
+
 customer_landing
 
 accelerometer_landing
