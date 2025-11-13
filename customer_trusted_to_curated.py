@@ -1,8 +1,8 @@
 import sys
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
-from pyspark.context import SparkContext
 from awsglue.context import GlueContext
+from pyspark.context import SparkContext
 from awsglue.job import Job
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
@@ -12,47 +12,36 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args["JOB_NAME"], args)
 
-# Script generated for node Accelerometer Landing
-AccelerometerLanding_node1676402494135 = glueContext.create_dynamic_frame.from_catalog(
-    database="stedi_database",
-    table_name="accelerometer_landing",
-    transformation_ctx="AccelerometerLanding_node1676402494135",
+# Read trusted data
+customer_trusted = glueContext.create_dynamic_frame.from_catalog(
+    database="stedi",
+    table_name="customer_trusted"
 )
 
-# Script generated for node Customer Trusted Zone
-CustomerTrustedZone_node1 = glueContext.create_dynamic_frame.from_options(
-    format_options={"multiline": False},
-    connection_type="s3",
-    format="json",
-    connection_options={
-        "paths": ["s3://project-stedi-customer-landing-bucket/customers/trusted/"],
-        "recurse": True,
-    },
-    transformation_ctx="CustomerTrustedZone_node1",
+accelerometer_trusted = glueContext.create_dynamic_frame.from_catalog(
+    database="stedi",
+    table_name="accelerometer_trusted"
 )
 
-# Script generated for node Join Customer
-JoinCustomer_node1676402624725 = Join.apply(
-    frame1=CustomerTrustedZone_node1,
-    frame2=AccelerometerLanding_node1676402494135,
+# Join on email = user
+customer_curated_join = Join.apply(
+    frame1=customer_trusted,
+    frame2=accelerometer_trusted,
     keys1=["email"],
-    keys2=["user"],
-    transformation_ctx="JoinCustomer_node1676402624725",
+    keys2=["user"]
 )
 
-# Script generated for node Drop Fields
-DropFields_node1676402768067 = DropFields.apply(
-    frame=JoinCustomer_node1676402624725,
-    paths=["x", "y", "z", "user", "timestamp"],
-    transformation_ctx="DropFields_node1676402768067",
-)
+# Keep only customer information (privacy-safe)
+customer_curated = customer_curated_join.select_fields([
+    "customerName", "email", "serialNumber", "birthDay", "registrationDate"
+])
 
-# Script generated for node Customer Curated
-CustomerCurated_node1676576584339 = glueContext.write_dynamic_frame.from_catalog(
-    frame=DropFields_node1676402768067,
-    database="stedi_database",
-    table_name="customer_curated",
-    transformation_ctx="CustomerCurated_node1676576584339",
+# Write curated data
+glueContext.write_dynamic_frame.from_options(
+    frame=customer_curated,
+    connection_type="s3",
+    connection_options={"path": "s3://project-stedi-customer-landing-bucket/customer/curated/"},
+    format="json"
 )
 
 job.commit()
